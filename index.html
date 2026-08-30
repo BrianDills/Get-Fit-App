@@ -49,13 +49,19 @@
     letter-spacing:2px; font-size:22px; margin:0; color: var(--chalk);
   }
   .tagline{ color: var(--muted); font-size:12px; margin-top:4px; letter-spacing: 0.3px;}
-  .back-row{ display:flex; align-items:center; gap:10px; }
+  .back-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .back-btn{
     background:none; border:none; color:var(--chalk); font-family:'Oswald',sans-serif;
     font-size:15px; font-weight:600; letter-spacing:1px; display:flex; align-items:center; gap:6px;
     padding: 6px 4px; cursor:pointer;
   }
   .back-btn:active{ opacity:0.6; }
+  .edit-toggle-btn{
+    background: none; border:1px solid var(--brass-dim); color: var(--brass);
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:1px;
+    padding:6px 14px; border-radius:20px; cursor:pointer; text-transform:uppercase;
+  }
+  .edit-toggle-btn:active{ background: var(--brass-dim); color:#1B1D21; }
 
   /* ---------- home ---------- */
   .container{ padding: 16px 16px 8px; max-width: 640px; margin: 0 auto; }
@@ -89,10 +95,10 @@
     color: var(--muted); font-size:11px; margin: 18px 4px 8px;
   }
 
-  .reset-row{ text-align:center; margin-top: 28px; }
+  .reset-row{ text-align:center; margin-top: 28px; display:flex; flex-direction:column; gap:10px; }
   .reset-btn{
     background:none; border:none; color:var(--muted-2); font-size:11px;
-    font-family:'IBM Plex Mono',monospace; letter-spacing:0.5px; padding:10px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; letter-spacing:0.5px; padding:6px; cursor:pointer;
     text-decoration: underline;
   }
 
@@ -105,6 +111,7 @@
     overflow:hidden;
   }
   .exercise-head{ padding: 14px 16px 10px; }
+  .exercise-name-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .exercise-name{
     font-family:'Oswald',sans-serif; font-weight:600; font-size:15.5px; letter-spacing:0.3px;
     color: var(--chalk); text-transform:uppercase;
@@ -116,6 +123,14 @@
   }
   .exercise-note{ color: var(--muted); font-size:12px; font-style:italic; margin-top:3px; }
 
+  .remove-exercise-btn{
+    flex-shrink:0; width:24px; height:24px; border-radius:50%; border:1px solid var(--rust);
+    color: var(--rust); background:none; font-size:16px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; visibility:hidden;
+  }
+  #log-view.editing .remove-exercise-btn{ visibility:visible; }
+  .remove-exercise-btn:active{ background: var(--rust); color: var(--bg); }
+
   .plate-tally{ display:flex; gap:4px; margin-top:10px; }
   .plate-seg{
     height:6px; flex:1; border-radius:3px; background: var(--surface-2);
@@ -126,9 +141,9 @@
 
   .set-row{
     display:grid;
-    grid-template-columns: 64px 1fr 74px 74px;
+    grid-template-columns: 54px 1fr 66px 66px 22px;
     align-items:center;
-    gap:8px;
+    gap:6px;
     padding: 9px 16px;
     border-top: 1px solid var(--border);
   }
@@ -136,7 +151,6 @@
   .set-row .set-label.warmup{ color: var(--muted-2); }
   .set-row .target{ font-size:12px; color: var(--muted); }
   .set-row .target .num{ color: var(--chalk); font-weight:500; }
-  .set-row .last-hint{ font-size:10px; color: var(--muted-2); display:block; margin-top:1px; }
 
   .field{ position:relative; }
   .field input{
@@ -149,6 +163,33 @@
     -webkit-appearance:none; margin:0;
   }
   .field-label{ position:absolute; top:-8px; left:6px; background:var(--surface); padding:0 4px; font-size:8.5px; color:var(--muted-2); letter-spacing:0.5px;}
+
+  .set-remove-slot{
+    width:22px; height:22px; border-radius:50%; border:1px solid var(--rust); color: var(--rust);
+    background:none; font-size:14px; line-height:1; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; visibility:hidden; padding:0;
+  }
+  #log-view.editing .set-remove-slot{ visibility:visible; }
+  .set-remove-slot:active{ background: var(--rust); color: var(--bg); }
+
+  .edit-only{ display:none; }
+  #log-view.editing .edit-only{ display:block; }
+
+  .add-set-btn{
+    width: calc(100% - 32px); margin: 10px 16px 14px;
+    background: none; border:1px dashed var(--border); color: var(--muted);
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:1px;
+    padding:10px; border-radius:8px; cursor:pointer; text-transform:uppercase;
+  }
+  .add-set-btn:active{ border-color: var(--brass); color: var(--brass); }
+
+  .add-exercise-btn{
+    width:100%; margin: 4px 0 20px;
+    background: none; border:1px dashed var(--brass-dim); color: var(--brass);
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:13px; letter-spacing:1.5px;
+    padding:14px; border-radius:10px; cursor:pointer; text-transform:uppercase;
+  }
+  .add-exercise-btn:active{ background: var(--brass-dim); color:#1B1D21; }
 
   .up-arrow{ color: var(--teal); font-size: 11px; margin-left: 3px; }
 
@@ -214,7 +255,41 @@
   }
   @keyframes toastIn{ from{ opacity:0; transform: translateX(-50%) translateY(8px);} to{opacity:1; transform:translateX(-50%) translateY(0);} }
 
-  .empty-note{ color: var(--muted); font-size:12px; text-align:center; padding: 10px 20px 0; }
+  .empty-note{ color: var(--muted); font-size:12px; text-align:center; padding: 20px 20px; }
+
+  /* ---------- modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex;
+    align-items:center; justify-content:center; z-index:200; padding:20px;
+  }
+  .modal-card{
+    background: var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px; width:100%; max-width:360px;
+  }
+  .modal-title{
+    font-family:'Oswald',sans-serif; font-weight:700; letter-spacing:2px; font-size:14px;
+    color: var(--brass); text-transform:uppercase; margin-bottom:16px;
+  }
+  .modal-field{ margin-bottom:14px; }
+  .modal-field label{
+    display:block; font-size:10px; color: var(--muted); text-transform:uppercase;
+    letter-spacing:0.5px; margin-bottom:5px;
+  }
+  .modal-field input{
+    width:100%; background: var(--surface-2); border:1px solid var(--border); border-radius:6px;
+    color: var(--chalk); font-family:'IBM Plex Mono',monospace; font-size:14px; padding:10px;
+  }
+  .modal-field input:focus{ outline:none; border-color: var(--brass); }
+  .modal-row{ display:flex; gap:10px; }
+  .modal-row .modal-field{ flex:1; }
+  .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+  .modal-actions button{
+    flex:1; font-family:'Oswald',sans-serif; font-weight:700; letter-spacing:1px; font-size:13px;
+    padding:12px; border-radius:8px; cursor:pointer; text-transform:uppercase;
+    border:1px solid var(--border); background: var(--surface-2); color: var(--chalk);
+  }
+  .modal-actions .primary{ background: var(--brass); border-color: var(--brass); color:#1B1D21; }
+  .modal-actions .primary:active{ background: var(--brass-dim); }
 
   .hidden{ display:none !important; }
 </style>
@@ -232,7 +307,10 @@
   <div class="container">
     <div class="section-label">This week's plan</div>
     <div id="day-list"></div>
-    <div class="reset-row"><button class="reset-btn" id="reset-btn">clear all logged data</button></div>
+    <div class="reset-row">
+      <button class="reset-btn" id="reset-btn">clear all logged data</button>
+      <button class="reset-btn" id="restore-btn">restore original program</button>
+    </div>
   </div>
 </div>
 
@@ -240,6 +318,7 @@
   <div class="topbar">
     <div class="back-row">
       <button class="back-btn" id="back-btn">&larr; BACK</button>
+      <button class="edit-toggle-btn" id="edit-toggle-btn">Edit</button>
     </div>
     <div class="wordmark" style="margin-top:8px;">
       <h1 id="log-title" style="font-size:22px;"></h1>
@@ -264,13 +343,78 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="add-exercise-modal">
+  <div class="modal-card">
+    <div class="modal-title">Add Exercise</div>
+    <div class="modal-field">
+      <label>Name</label>
+      <input type="text" id="modal-name" placeholder="e.g. Incline DB Curl">
+    </div>
+    <div class="modal-field">
+      <label>Notes (optional)</label>
+      <input type="text" id="modal-notes" placeholder="e.g. Alternate sides each rep">
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label>Target reps</label>
+        <input type="text" id="modal-target" value="10">
+      </div>
+      <div class="modal-field">
+        <label># Sets</label>
+        <input type="number" id="modal-sets" min="1" max="8" value="3">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="modal-cancel">Cancel</button>
+      <button id="modal-save" class="primary">Add</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const PROGRAM = [{"id": "d1", "num": 1, "title": "UPPER A", "subtitle": "Push/Pull, Chest Emphasis", "exercises": [{"name": "Flat Dumbbell Bench Press", "notes": "", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "1-Arm Dumbbell Row", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Seated Dumbbell Overhead Press", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Lateral Raise", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Standing Dumbbell Curl", "notes": "", "superset": "d1_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Overhead Dumbbell Triceps Extension", "notes": "", "superset": "d1_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}]}, {"id": "d2", "num": 2, "title": "LOWER A", "subtitle": "Quad Emphasis", "exercises": [{"name": "Dumbbell Goblet Squat", "notes": "", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Dumbbell Walking Lunge", "notes": "Reps are per leg", "superset": "", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Romanian Deadlift", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Standing Loaded Dumbbell Calf Raise", "notes": "Hold a dumbbell in each hand", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Weighted Dumbbell Sit-Up", "notes": "Hold dumbbell at chest", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}]}, {"id": "d3", "num": 3, "title": "UPPER B", "subtitle": "Pull/Push, Back Emphasis", "exercises": [{"name": "Incline Dumbbell Row", "notes": "Chest-supported if possible", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Incline Dumbbell Bench Press", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Pullover", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}]}, {"name": "Bent-Over Dumbbell Rear Delt Fly", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Seated Dumbbell Lateral Raise", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Incline Dumbbell Hammer Curl", "notes": "", "superset": "d3_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Skull Crusher", "notes": "", "superset": "d3_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}]}, {"id": "d4", "num": 4, "title": "LOWER B", "subtitle": "Hamstring/Glute Emphasis", "exercises": [{"name": "Single-Leg Dumbbell Romanian Deadlift", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "warmup", "target": "12"}, {"type": "warmup", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Bulgarian Split Squat", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Hip Thrust", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Seated Loaded Dumbbell Calf Raise", "notes": "Hold a dumbbell on each knee", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Weighted Plank", "notes": "Plate or dumbbell on back", "superset": "", "sets": [{"type": "normal", "target": "30-45 sec"}, {"type": "normal", "target": "30-45 sec"}, {"type": "normal", "target": "30-45 sec"}]}]}, {"id": "d5", "num": 5, "title": "ARMS + WEAK POINTS", "subtitle": "", "exercises": [{"name": "Alternate Dumbbell Curl", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "warmup", "target": "12"}, {"type": "warmup", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Two-Hand Overhead Dumbbell Triceps Extension", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Cross-Body Hammer Curl", "notes": "Alternate sides each rep", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Kickback", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Bent-Over Dumbbell Rear Delt Fly", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}]}, {"name": "Dumbbell Lateral Raise", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}]}, {"name": "Weighted Russian Twist", "notes": "Hold dumbbell with both hands", "superset": "", "sets": [{"type": "normal", "target": "15-20"}, {"type": "normal", "target": "15-20"}, {"type": "normal", "target": "15-20"}]}]}];
+const DEFAULT_PROGRAM = [{"id": "d1", "num": 1, "title": "UPPER A", "subtitle": "Push/Pull, Chest Emphasis", "exercises": [{"name": "Flat Dumbbell Bench Press", "notes": "", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "1-Arm Dumbbell Row", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Seated Dumbbell Overhead Press", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Lateral Raise", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Standing Dumbbell Curl", "notes": "", "superset": "d1_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Overhead Dumbbell Triceps Extension", "notes": "", "superset": "d1_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}]}, {"id": "d2", "num": 2, "title": "LOWER A", "subtitle": "Quad Emphasis", "exercises": [{"name": "Dumbbell Goblet Squat", "notes": "", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Dumbbell Walking Lunge", "notes": "Reps are per leg", "superset": "", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Romanian Deadlift", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Standing Loaded Dumbbell Calf Raise", "notes": "Hold a dumbbell in each hand", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Weighted Dumbbell Sit-Up", "notes": "Hold dumbbell at chest", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}]}, {"id": "d3", "num": 3, "title": "UPPER B", "subtitle": "Pull/Push, Back Emphasis", "exercises": [{"name": "Incline Dumbbell Row", "notes": "Chest-supported if possible", "superset": "", "sets": [{"type": "warmup", "target": "15"}, {"type": "warmup", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Incline Dumbbell Bench Press", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Pullover", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}]}, {"name": "Bent-Over Dumbbell Rear Delt Fly", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Seated Dumbbell Lateral Raise", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Incline Dumbbell Hammer Curl", "notes": "", "superset": "d3_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Skull Crusher", "notes": "", "superset": "d3_arms", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}]}, {"id": "d4", "num": 4, "title": "LOWER B", "subtitle": "Hamstring/Glute Emphasis", "exercises": [{"name": "Single-Leg Dumbbell Romanian Deadlift", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "warmup", "target": "12"}, {"type": "warmup", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Bulgarian Split Squat", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Dumbbell Hip Thrust", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Seated Loaded Dumbbell Calf Raise", "notes": "Hold a dumbbell on each knee", "superset": "", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}, {"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Weighted Plank", "notes": "Plate or dumbbell on back", "superset": "", "sets": [{"type": "normal", "target": "30-45 sec"}, {"type": "normal", "target": "30-45 sec"}, {"type": "normal", "target": "30-45 sec"}]}]}, {"id": "d5", "num": 5, "title": "ARMS + WEAK POINTS", "subtitle": "", "exercises": [{"name": "Alternate Dumbbell Curl", "notes": "Alternate sides each rep", "superset": "", "sets": [{"type": "warmup", "target": "12"}, {"type": "warmup", "target": "10"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}, {"type": "normal", "target": "6"}]}, {"name": "Two-Hand Overhead Dumbbell Triceps Extension", "notes": "", "superset": "", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "10"}, {"type": "normal", "target": "8"}]}, {"name": "Cross-Body Hammer Curl", "notes": "Alternate sides each rep", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "10"}, {"type": "normal", "target": "10"}]}, {"name": "Dumbbell Kickback", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "12"}, {"type": "normal", "target": "12"}]}, {"name": "Bent-Over Dumbbell Rear Delt Fly", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}]}, {"name": "Dumbbell Lateral Raise", "notes": "", "superset": "d5_finisher", "sets": [{"type": "normal", "target": "15"}, {"type": "normal", "target": "15"}]}, {"name": "Weighted Russian Twist", "notes": "Hold dumbbell with both hands", "superset": "", "sets": [{"type": "normal", "target": "15-20"}, {"type": "normal", "target": "15-20"}, {"type": "normal", "target": "15-20"}]}]}];
 
 let currentDay = null;
+let cachedLatest = null;
+let editMode = false;
 
 function isTimeTarget(t){ return /sec/i.test(t); }
-function isNumericTarget(t){ return /^\d+$/.test(t); }
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function slug(str){
+  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24);
+}
+
+function ensureIds(days){
+  days.forEach(day => {
+    day.exercises.forEach((ex, i) => {
+      if(!ex.id) ex.id = day.id + '-ex' + i + '-' + slug(ex.name);
+      ex.sets.forEach((s, j) => {
+        if(!s.id) s.id = ex.id + '-set' + j;
+      });
+    });
+  });
+}
+
+function saveProgram(program){
+  try{ localStorage.setItem('program-data', JSON.stringify(program)); }catch(e){}
+}
+
+function loadProgram(){
+  try{
+    const raw = localStorage.getItem('program-data');
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  const cloned = JSON.parse(JSON.stringify(DEFAULT_PROGRAM));
+  ensureIds(cloned);
+  saveProgram(cloned);
+  return cloned;
+}
+
+let LIVE_PROGRAM = loadProgram();
 
 async function getLatest(dayId){
   try{
@@ -290,15 +434,15 @@ function fmtDate(iso){
 async function renderHome(){
   const list = document.getElementById('day-list');
   list.innerHTML = '';
-  for(const day of PROGRAM){
+  for(const day of LIVE_PROGRAM){
     const latest = await getLatest(day.id);
     const card = document.createElement('div');
     card.className = 'day-card';
     card.innerHTML = `
       <div class="num">${String(day.num).padStart(2,'0')}</div>
       <div class="info">
-        <div class="title">${day.title}</div>
-        <div class="subtitle">${day.subtitle || ''}</div>
+        <div class="title">${escapeHtml(day.title)}</div>
+        <div class="subtitle">${escapeHtml(day.subtitle || '')}</div>
         <div class="status ${latest ? 'done' : ''}">${latest ? 'Last done ' + fmtDate(latest.date) : 'Not started yet'}</div>
       </div>
       <div class="chevron">&rsaquo;</div>
@@ -310,120 +454,258 @@ async function renderHome(){
 
 async function openDay(dayId){
   endRest();
-  currentDay = PROGRAM.find(d => d.id === dayId);
-  const latest = await getLatest(dayId);
+  currentDay = LIVE_PROGRAM.find(d => d.id === dayId);
+  cachedLatest = await getLatest(dayId);
   document.getElementById('log-title').textContent = currentDay.title;
   document.getElementById('log-subtitle').textContent = currentDay.subtitle
-    ? currentDay.subtitle + (latest ? ' · last done ' + fmtDate(latest.date) : '')
-    : (latest ? 'Last done ' + fmtDate(latest.date) : 'Not started yet');
+    ? currentDay.subtitle + (cachedLatest ? ' · last done ' + fmtDate(cachedLatest.date) : '')
+    : (cachedLatest ? 'Last done ' + fmtDate(cachedLatest.date) : 'Not started yet');
 
-  const body = document.getElementById('log-body');
-  body.innerHTML = '';
+  editMode = false;
+  document.getElementById('log-view').classList.remove('editing');
+  document.getElementById('edit-toggle-btn').textContent = 'Edit';
 
-  currentDay.exercises.forEach((ex, exIdx) => {
-    const block = document.createElement('div');
-    block.className = 'exercise-block';
-    block.dataset.exIdx = exIdx;
-
-    const head = document.createElement('div');
-    head.className = 'exercise-head';
-    head.innerHTML = `
-      <div class="exercise-name">${ex.name}${ex.superset ? `<span class="superset-tag">SUPERSET</span>` : ''}</div>
-      ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
-      <div class="plate-tally" id="tally-${exIdx}"></div>
-    `;
-    block.appendChild(head);
-
-    ex.sets.forEach((s, setIdx) => {
-      const prevSet = latest && latest.exercises && latest.exercises[exIdx] ? latest.exercises[exIdx][setIdx] : null;
-      const row = document.createElement('div');
-      row.className = 'set-row';
-      const label = s.type === 'warmup' ? 'Warm-up' : `Set ${ex.sets.slice(0, setIdx+1).filter(x => x.type !== 'warmup').length}`;
-      const timeBased = isTimeTarget(s.target);
-      const secondLabel = timeBased ? 'SEC' : 'REPS';
-      const restSeconds = computeRestSeconds(ex, exIdx, s.type);
-      row.innerHTML = `
-        <div class="set-label ${s.type === 'warmup' ? 'warmup' : ''}">${label}</div>
-        <div class="target">target: <span class="num">${s.target}</span></div>
-        <div class="field">
-          <span class="field-label">LB</span>
-          <input type="number" inputmode="decimal" min="0" step="0.5"
-                 data-ex="${exIdx}" data-set="${setIdx}" data-field="weight"
-                 placeholder="${prevSet && prevSet.weight != null ? prevSet.weight : '-'}">
-        </div>
-        <div class="field">
-          <span class="field-label">${secondLabel}</span>
-          <input type="number" inputmode="numeric" min="0" step="1"
-                 data-ex="${exIdx}" data-set="${setIdx}" data-field="reps" data-rest="${restSeconds}"
-                 placeholder="${prevSet && prevSet.reps != null ? prevSet.reps : '-'}">
-        </div>
-      `;
-      block.appendChild(row);
-
-      // wire input listener to update plate tally
-      const weightInput = row.querySelector('[data-field="weight"]');
-      const repsInput = row.querySelector('[data-field="reps"]');
-      [weightInput, repsInput].forEach(inp => {
-        inp.addEventListener('input', () => updateTally(exIdx));
-      });
-      // auto-start rest timer once reps are logged for this set
-      repsInput.addEventListener('change', () => {
-        if(repsInput.value !== ''){
-          startRest(restSeconds);
-        }
-      });
-    });
-
-    body.appendChild(block);
-    renderTally(exIdx, ex.sets.length);
-  });
+  renderDayBody();
 
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('log-view').classList.remove('hidden');
   window.scrollTo(0,0);
 }
 
-function renderTally(exIdx, count){
-  const tally = document.getElementById('tally-' + exIdx);
-  tally.innerHTML = '';
-  for(let i=0;i<count;i++){
-    const seg = document.createElement('div');
-    seg.className = 'plate-seg';
-    seg.id = `seg-${exIdx}-${i}`;
-    tally.appendChild(seg);
-  }
-}
-
-function updateTally(exIdx){
-  const block = document.querySelector(`.exercise-block[data-ex-idx="${exIdx}"]`);
-  if(!block) return;
-  const rows = block.querySelectorAll('.set-row');
-  rows.forEach((row, setIdx) => {
-    const w = row.querySelector('[data-field="weight"]').value;
-    const r = row.querySelector('[data-field="reps"]').value;
-    const seg = document.getElementById(`seg-${exIdx}-${setIdx}`);
-    if(seg){
-      if(w !== '' || r !== ''){ seg.classList.add('filled'); }
-      else{ seg.classList.remove('filled'); }
-    }
-  });
-}
-
-/* ---------- rest timer ---------- */
-let restInterval = null;
-let restRemaining = 0;
-let restTotal = 0;
-
-function computeRestSeconds(ex, exIdx, setType){
+function computeRestSeconds(ex, setType){
   // supersets: minimal rest, since exercises are meant to be done back-to-back
   if(ex.superset) return 20;
   // warm-up sets: short rest, you're not near failure yet
   if(setType === 'warmup') return 60;
   // the day's first exercise is the primary heavy compound lift: longer rest
-  if(exIdx === 0) return 120;
+  if(currentDay && currentDay.exercises[0] && currentDay.exercises[0].id === ex.id) return 120;
   // everything else: standard hypertrophy-accessory rest
   return 75;
 }
+
+function renderExerciseBlock(ex, latest){
+  const block = document.createElement('div');
+  block.className = 'exercise-block';
+  block.dataset.exId = ex.id;
+
+  const head = document.createElement('div');
+  head.className = 'exercise-head';
+  head.innerHTML = `
+    <div class="exercise-name-row">
+      <div class="exercise-name">${escapeHtml(ex.name)}${ex.superset ? `<span class="superset-tag">SUPERSET</span>` : ''}</div>
+      <button class="remove-exercise-btn" title="Remove exercise">&times;</button>
+    </div>
+    ${ex.notes ? `<div class="exercise-note">${escapeHtml(ex.notes)}</div>` : ''}
+    <div class="plate-tally"></div>
+  `;
+  block.appendChild(head);
+  head.querySelector('.remove-exercise-btn').addEventListener('click', () => removeExercise(ex.id));
+
+  const tally = head.querySelector('.plate-tally');
+
+  ex.sets.forEach((s, setIdx) => {
+    const prevSet = latest && latest.exercises && latest.exercises[ex.id] ? latest.exercises[ex.id][s.id] : null;
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.dataset.setId = s.id;
+    const label = s.type === 'warmup' ? 'Warm-up' : `Set ${ex.sets.slice(0, setIdx+1).filter(x => x.type !== 'warmup').length}`;
+    const timeBased = isTimeTarget(s.target);
+    const secondLabel = timeBased ? 'SEC' : 'REPS';
+    const restSeconds = computeRestSeconds(ex, s.type);
+    row.innerHTML = `
+      <div class="set-label ${s.type === 'warmup' ? 'warmup' : ''}">${label}</div>
+      <div class="target">target: <span class="num">${escapeHtml(s.target)}</span></div>
+      <div class="field">
+        <span class="field-label">LB</span>
+        <input type="number" inputmode="decimal" min="0" step="0.5"
+               data-field="weight"
+               placeholder="${prevSet && prevSet.weight != null ? prevSet.weight : '-'}">
+      </div>
+      <div class="field">
+        <span class="field-label">${secondLabel}</span>
+        <input type="number" inputmode="numeric" min="0" step="1"
+               data-field="reps"
+               placeholder="${prevSet && prevSet.reps != null ? prevSet.reps : '-'}">
+      </div>
+      <button class="set-remove-slot" title="Remove set">&minus;</button>
+    `;
+    block.appendChild(row);
+
+    const seg = document.createElement('div');
+    seg.className = 'plate-seg';
+    tally.appendChild(seg);
+
+    const weightInput = row.querySelector('[data-field="weight"]');
+    const repsInput = row.querySelector('[data-field="reps"]');
+    [weightInput, repsInput].forEach(inp => {
+      inp.addEventListener('input', () => updateTally(block));
+    });
+    repsInput.addEventListener('change', () => {
+      if(repsInput.value !== ''){ startRest(restSeconds); }
+    });
+    row.querySelector('.set-remove-slot').addEventListener('click', () => removeSet(ex.id, s.id));
+  });
+
+  const addSetBtn = document.createElement('button');
+  addSetBtn.className = 'add-set-btn edit-only';
+  addSetBtn.textContent = '+ Add Set';
+  addSetBtn.addEventListener('click', () => addSet(ex.id));
+  block.appendChild(addSetBtn);
+
+  return block;
+}
+
+function renderDayBody(){
+  const body = document.getElementById('log-body');
+  body.innerHTML = '';
+
+  if(currentDay.exercises.length === 0){
+    const note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = 'No exercises in this day yet — tap Edit, then + Add Exercise.';
+    body.appendChild(note);
+  }else{
+    currentDay.exercises.forEach(ex => {
+      body.appendChild(renderExerciseBlock(ex, cachedLatest));
+    });
+  }
+
+  const addExBtn = document.createElement('button');
+  addExBtn.className = 'add-exercise-btn edit-only';
+  addExBtn.textContent = '+ Add Exercise';
+  addExBtn.addEventListener('click', openAddExerciseModal);
+  body.appendChild(addExBtn);
+}
+
+function snapshotInputs(){
+  const snap = {};
+  document.querySelectorAll('#log-body .exercise-block').forEach(block => {
+    const exId = block.dataset.exId;
+    block.querySelectorAll('.set-row').forEach(row => {
+      const setId = row.dataset.setId;
+      const w = row.querySelector('[data-field="weight"]').value;
+      const r = row.querySelector('[data-field="reps"]').value;
+      if(w !== '' || r !== ''){
+        snap[exId + '|' + setId] = { w, r };
+      }
+    });
+  });
+  return snap;
+}
+
+function restoreInputs(snap){
+  document.querySelectorAll('#log-body .exercise-block').forEach(block => {
+    const exId = block.dataset.exId;
+    block.querySelectorAll('.set-row').forEach(row => {
+      const setId = row.dataset.setId;
+      const key = exId + '|' + setId;
+      if(snap[key]){
+        row.querySelector('[data-field="weight"]').value = snap[key].w;
+        row.querySelector('[data-field="reps"]').value = snap[key].r;
+      }
+    });
+    updateTally(block);
+  });
+}
+
+function rebuildDayBody(){
+  const snap = snapshotInputs();
+  renderDayBody();
+  restoreInputs(snap);
+}
+
+function updateTally(block){
+  const rows = block.querySelectorAll('.set-row');
+  const segs = block.querySelectorAll('.plate-seg');
+  rows.forEach((row, i) => {
+    const w = row.querySelector('[data-field="weight"]').value;
+    const r = row.querySelector('[data-field="reps"]').value;
+    if(segs[i]){
+      if(w !== '' || r !== ''){ segs[i].classList.add('filled'); }
+      else{ segs[i].classList.remove('filled'); }
+    }
+  });
+}
+
+/* ---------- structural editing ---------- */
+function toggleEdit(){
+  editMode = !editMode;
+  document.getElementById('log-view').classList.toggle('editing', editMode);
+  document.getElementById('edit-toggle-btn').textContent = editMode ? 'Done' : 'Edit';
+}
+
+function addSet(exId){
+  const ex = currentDay.exercises.find(e => e.id === exId);
+  if(!ex) return;
+  const last = ex.sets[ex.sets.length - 1];
+  const newSet = { type: 'normal', target: last ? last.target : '10', id: exId + '-set-' + Date.now() };
+  ex.sets.push(newSet);
+  saveProgram(LIVE_PROGRAM);
+  rebuildDayBody();
+}
+
+function removeSet(exId, setId){
+  const ex = currentDay.exercises.find(e => e.id === exId);
+  if(!ex) return;
+  if(ex.sets.length <= 1){
+    showToast('Needs at least 1 set — remove the exercise instead.');
+    return;
+  }
+  ex.sets = ex.sets.filter(s => s.id !== setId);
+  saveProgram(LIVE_PROGRAM);
+  rebuildDayBody();
+}
+
+function removeExercise(exId){
+  if(!confirm('Remove this exercise from the day?')) return;
+  currentDay.exercises = currentDay.exercises.filter(e => e.id !== exId);
+  saveProgram(LIVE_PROGRAM);
+  rebuildDayBody();
+  showToast('Exercise removed.');
+}
+
+function openAddExerciseModal(){
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-notes').value = '';
+  document.getElementById('modal-target').value = '10';
+  document.getElementById('modal-sets').value = '3';
+  document.getElementById('add-exercise-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-name').focus(), 50);
+}
+
+function closeAddExerciseModal(){
+  document.getElementById('add-exercise-modal').classList.add('hidden');
+}
+
+function handleAddExercise(){
+  const name = document.getElementById('modal-name').value.trim();
+  if(!name){ showToast('Enter an exercise name.'); return; }
+  const notes = document.getElementById('modal-notes').value.trim();
+  const target = document.getElementById('modal-target').value.trim() || '10';
+  let setCount = parseInt(document.getElementById('modal-sets').value, 10);
+  if(!setCount || setCount < 1) setCount = 1;
+  if(setCount > 8) setCount = 8;
+
+  const exId = currentDay.id + '-custom-' + Date.now();
+  const sets = [];
+  for(let i = 0; i < setCount; i++){
+    sets.push({ type: 'normal', target, id: exId + '-set' + i });
+  }
+  currentDay.exercises.push({ id: exId, name, notes, superset: '', sets });
+  saveProgram(LIVE_PROGRAM);
+  closeAddExerciseModal();
+  rebuildDayBody();
+  showToast('Exercise added.');
+}
+
+document.getElementById('edit-toggle-btn').addEventListener('click', toggleEdit);
+document.getElementById('modal-cancel').addEventListener('click', closeAddExerciseModal);
+document.getElementById('modal-save').addEventListener('click', handleAddExercise);
+
+/* ---------- rest timer ---------- */
+let restInterval = null;
+let restRemaining = 0;
+let restTotal = 0;
 
 function startRest(seconds){
   clearInterval(restInterval);
@@ -504,20 +786,25 @@ document.getElementById('rest-plus').addEventListener('click', () => {
 async function finishWorkout(){
   const body = document.getElementById('log-body');
   const exercisesData = {};
-  currentDay.exercises.forEach((ex, exIdx) => {
-    const block = body.querySelector(`.exercise-block[data-ex-idx="${exIdx}"]`) || body.children[exIdx];
-    const setsData = [];
-    ex.sets.forEach((s, setIdx) => {
-      const wInput = block.querySelector(`[data-ex="${exIdx}"][data-set="${setIdx}"][data-field="weight"]`);
-      const rInput = block.querySelector(`[data-ex="${exIdx}"][data-set="${setIdx}"][data-field="reps"]`);
-      const weight = wInput && wInput.value !== '' ? parseFloat(wInput.value) : null;
-      const reps = rInput && rInput.value !== '' ? parseFloat(rInput.value) : null;
-      setsData.push({ weight, reps });
+  let anyData = false;
+
+  currentDay.exercises.forEach(ex => {
+    const block = body.querySelector(`.exercise-block[data-ex-id="${ex.id}"]`);
+    if(!block) return;
+    const setsData = {};
+    ex.sets.forEach(s => {
+      const row = block.querySelector(`.set-row[data-set-id="${s.id}"]`);
+      if(!row) return;
+      const wInput = row.querySelector('[data-field="weight"]');
+      const rInput = row.querySelector('[data-field="reps"]');
+      const weight = wInput.value !== '' ? parseFloat(wInput.value) : null;
+      const reps = rInput.value !== '' ? parseFloat(rInput.value) : null;
+      if(weight != null || reps != null) anyData = true;
+      setsData[s.id] = { weight, reps };
     });
-    exercisesData[exIdx] = setsData;
+    exercisesData[ex.id] = setsData;
   });
 
-  const anyData = Object.values(exercisesData).some(sets => sets.some(s => s.weight != null || s.reps != null));
   if(!anyData){
     showToast('Enter at least one set before finishing.');
     return;
@@ -551,12 +838,20 @@ function goHome(){
 
 document.getElementById('back-btn').addEventListener('click', goHome);
 document.getElementById('finish-btn').addEventListener('click', finishWorkout);
-document.getElementById('reset-btn').addEventListener('click', async () => {
+document.getElementById('reset-btn').addEventListener('click', () => {
   if(!confirm('Clear all logged sessions? This cannot be undone.')) return;
-  for(const day of PROGRAM){
+  for(const day of LIVE_PROGRAM){
     try{ localStorage.removeItem('latest:' + day.id); }catch(e){}
   }
   showToast('All data cleared.');
+  renderHome();
+});
+document.getElementById('restore-btn').addEventListener('click', () => {
+  if(!confirm('Restore the original 5-day program? Any exercises or sets you added or removed will be lost. Logged weights are kept.')) return;
+  LIVE_PROGRAM = JSON.parse(JSON.stringify(DEFAULT_PROGRAM));
+  ensureIds(LIVE_PROGRAM);
+  saveProgram(LIVE_PROGRAM);
+  showToast('Program restored to original.');
   renderHome();
 });
 
