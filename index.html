@@ -270,6 +270,24 @@
 
   .empty-note{ color: var(--muted); font-size:12px; text-align:center; padding: 20px 20px; }
 
+  .history-session{
+    background: var(--surface); border:1px solid var(--border); border-radius: var(--radius);
+    padding:14px 16px; margin-bottom:12px;
+  }
+  .history-date{
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.5px;
+    color: var(--brass); margin-bottom:8px; text-transform:uppercase;
+  }
+  .history-exercise{
+    display:flex; justify-content:space-between; gap:10px; padding:6px 0;
+    border-top:1px solid var(--border); font-size:12.5px;
+  }
+  .history-exercise:first-of-type{ border-top:none; }
+  .history-ex-name{ color: var(--chalk); flex-shrink:0; max-width:52%; }
+  .history-ex-sets{
+    color: var(--muted); text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12px;
+  }
+
   /* ---------- modal ---------- */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex;
@@ -359,7 +377,10 @@
   <div class="topbar">
     <div class="back-row">
       <button class="back-btn" id="back-btn">&larr; BACK</button>
-      <button class="edit-toggle-btn" id="edit-toggle-btn">Edit</button>
+      <div style="display:flex; gap:8px;">
+        <button class="edit-toggle-btn" id="history-btn">History</button>
+        <button class="edit-toggle-btn" id="edit-toggle-btn">Edit</button>
+      </div>
     </div>
     <div class="wordmark" style="margin-top:8px;">
       <h1 id="log-title" style="font-size:22px;"></h1>
@@ -382,6 +403,19 @@
       <button id="rest-plus">+15s</button>
     </div>
   </div>
+</div>
+
+<div id="history-view" class="hidden">
+  <div class="topbar">
+    <div class="back-row">
+      <button class="back-btn" id="history-back-btn">&larr; BACK</button>
+    </div>
+    <div class="wordmark" style="margin-top:8px;">
+      <h1 id="history-title" style="font-size:22px;"></h1>
+    </div>
+    <div class="tagline">Past sessions, most recent first</div>
+  </div>
+  <div class="container" id="history-body"></div>
 </div>
 
 <div class="modal-overlay hidden" id="add-exercise-modal">
@@ -470,19 +504,69 @@ function loadProgram(){
 
 let LIVE_PROGRAM = loadProgram();
 
-async function getLatest(dayId){
+const HISTORY_LIMIT = 20;
+
+function migrateLegacyLatest(dayId){
+  if(localStorage.getItem('history:' + dayId)) return;
+  const legacyRaw = localStorage.getItem('latest:' + dayId);
+  if(!legacyRaw) return;
   try{
-    const raw = localStorage.getItem('latest:' + dayId);
-    return raw ? JSON.parse(raw) : null;
+    const legacy = JSON.parse(legacyRaw);
+    const day = LIVE_PROGRAM.find(d => d.id === dayId);
+    const exercises = {};
+    if(legacy.exercises && day){
+      Object.keys(legacy.exercises).forEach(exId => {
+        const ex = day.exercises.find(e => e.id === exId);
+        const legacySets = legacy.exercises[exId];
+        const sets = {};
+        Object.keys(legacySets).forEach(setId => {
+          const setDef = ex ? ex.sets.find(s => s.id === setId) : null;
+          sets[setId] = {
+            label: setDef ? (setDef.type === 'warmup' ? 'Warm-up' : 'Set') : 'Set',
+            weight: legacySets[setId].weight,
+            reps: legacySets[setId].reps
+          };
+        });
+        exercises[exId] = { name: ex ? ex.name : 'Exercise', sets };
+      });
+    }
+    localStorage.setItem('history:' + dayId, JSON.stringify([{ date: legacy.date, exercises }]));
+    localStorage.removeItem('latest:' + dayId);
+  }catch(e){}
+}
+
+function getHistory(dayId){
+  migrateLegacyLatest(dayId);
+  try{
+    const raw = localStorage.getItem('history:' + dayId);
+    return raw ? JSON.parse(raw) : [];
   }catch(e){
-    return null;
+    return [];
   }
+}
+
+function saveSession(dayId, session){
+  const hist = getHistory(dayId);
+  hist.push(session);
+  while(hist.length > HISTORY_LIMIT) hist.shift();
+  localStorage.setItem('history:' + dayId, JSON.stringify(hist));
+}
+
+async function getLatest(dayId){
+  const hist = getHistory(dayId);
+  return hist.length ? hist[hist.length - 1] : null;
 }
 
 function fmtDate(iso){
   const d = new Date(iso);
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return months[d.getMonth()] + ' ' + d.getDate();
+}
+
+function fmtDateFull(iso){
+  const d = new Date(iso);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
 }
 
 async function renderHome(){
@@ -558,7 +642,7 @@ function renderExerciseBlock(ex, latest){
   const tally = head.querySelector('.plate-tally');
 
   ex.sets.forEach((s, setIdx) => {
-    const prevSet = latest && latest.exercises && latest.exercises[ex.id] ? latest.exercises[ex.id][s.id] : null;
+    const prevSet = latest && latest.exercises && latest.exercises[ex.id] ? latest.exercises[ex.id].sets[s.id] : null;
     const row = document.createElement('div');
     row.className = 'set-row';
     row.dataset.setId = s.id;
@@ -833,6 +917,7 @@ let restRemaining = 0;
 let restTotal = 0;
 
 function startRest(seconds){
+  unlockAudio();
   clearInterval(restInterval);
   restTotal = seconds;
   restRemaining = seconds;
@@ -890,8 +975,11 @@ function unlockAudio(){
     audioCtx.resume().catch(() => {});
   }
 }
-document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
-document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { passive: true });
+document.addEventListener('click', unlockAudio);
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') unlockAudio();
+});
 
 function playBeep(){
   if(!audioCtx){ unlockAudio(); }
@@ -946,9 +1034,10 @@ async function finishWorkout(){
       const weight = wInput.value !== '' ? parseFloat(wInput.value) : null;
       const reps = rInput.value !== '' ? parseFloat(rInput.value) : null;
       if(weight != null || reps != null) anyData = true;
-      setsData[s.id] = { weight, reps };
+      const labelEl = row.querySelector('.set-label');
+      setsData[s.id] = { label: labelEl ? labelEl.textContent : 'Set', weight, reps };
     });
-    exercisesData[ex.id] = setsData;
+    exercisesData[ex.id] = { name: ex.name, sets: setsData };
   });
 
   if(!anyData){
@@ -956,9 +1045,9 @@ async function finishWorkout(){
     return;
   }
 
-  const payload = { date: new Date().toISOString(), exercises: exercisesData };
+  const session = { date: new Date().toISOString(), exercises: exercisesData };
   try{
-    localStorage.setItem('latest:' + currentDay.id, JSON.stringify(payload));
+    saveSession(currentDay.id, session);
     showToast('Workout saved — nice work.');
     setTimeout(() => { goHome(); }, 650);
   }catch(e){
@@ -982,11 +1071,59 @@ function goHome(){
   window.scrollTo(0,0);
 }
 
+function openHistory(){
+  const hist = getHistory(currentDay.id).slice().reverse();
+  document.getElementById('history-title').textContent = currentDay.title;
+  const body = document.getElementById('history-body');
+  body.innerHTML = '';
+
+  if(hist.length === 0){
+    const note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = 'No sessions logged yet for this day.';
+    body.appendChild(note);
+  }else{
+    hist.forEach(session => {
+      const card = document.createElement('div');
+      card.className = 'history-session';
+      let html = `<div class="history-date">${fmtDateFull(session.date)}</div>`;
+      Object.values(session.exercises || {}).forEach(exEntry => {
+        const setsStr = Object.values(exEntry.sets || {})
+          .filter(s => s.weight != null || s.reps != null)
+          .map(s => {
+            const w = s.weight != null ? s.weight : '-';
+            const r = s.reps != null ? '×' + s.reps : '';
+            return `${w}${r}`;
+          })
+          .join(', ');
+        if(setsStr){
+          html += `<div class="history-exercise"><span class="history-ex-name">${escapeHtml(exEntry.name)}</span><span class="history-ex-sets">${escapeHtml(setsStr)}</span></div>`;
+        }
+      });
+      card.innerHTML = html;
+      body.appendChild(card);
+    });
+  }
+
+  document.getElementById('log-view').classList.add('hidden');
+  document.getElementById('history-view').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
+function closeHistory(){
+  document.getElementById('history-view').classList.add('hidden');
+  document.getElementById('log-view').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
 document.getElementById('back-btn').addEventListener('click', goHome);
+document.getElementById('history-btn').addEventListener('click', openHistory);
+document.getElementById('history-back-btn').addEventListener('click', closeHistory);
 document.getElementById('finish-btn').addEventListener('click', finishWorkout);
 document.getElementById('reset-btn').addEventListener('click', () => {
   if(!confirm('Clear all logged sessions? This cannot be undone.')) return;
   for(const day of LIVE_PROGRAM){
+    try{ localStorage.removeItem('history:' + day.id); }catch(e){}
     try{ localStorage.removeItem('latest:' + day.id); }catch(e){}
   }
   showToast('All data cleared.');
