@@ -183,6 +183,19 @@
   }
   .add-set-btn:active{ border-color: var(--brass); color: var(--brass); }
 
+  .user-note-wrap{ padding: 4px 16px 14px; }
+  .user-note-label{
+    font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:1px; text-transform:uppercase;
+    color: var(--muted-2); margin-bottom:5px; display:block;
+  }
+  .user-note{
+    width:100%; background: var(--surface-2); border:1px solid var(--border); border-radius:6px;
+    color: var(--chalk); font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    padding:8px 10px; resize:none; min-height:34px; line-height:1.4;
+  }
+  .user-note:focus{ outline:none; border-color: var(--brass); }
+  .user-note::placeholder{ color: var(--muted-2); }
+
   .add-exercise-btn{
     width:100%; margin: 4px 0 20px;
     background: none; border:1px dashed var(--brass-dim); color: var(--brass);
@@ -419,6 +432,11 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function autoGrow(textarea){
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
 function slug(str){
   return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24);
 }
@@ -427,6 +445,7 @@ function ensureIds(days){
   days.forEach(day => {
     day.exercises.forEach((ex, i) => {
       if(!ex.id) ex.id = day.id + '-ex' + i + '-' + slug(ex.name);
+      if(ex.userNote === undefined) ex.userNote = '';
       ex.sets.forEach((s, j) => {
         if(!s.id) s.id = ex.id + '-set' + j;
       });
@@ -513,7 +532,7 @@ function computeRestSeconds(ex, setType){
   // warm-up sets: short rest, you're not near failure yet
   if(setType === 'warmup') return 60;
   // the day's first exercise is the primary heavy compound lift: longer rest
-  if(currentDay && currentDay.exercises[0] && currentDay.exercises[0].id === ex.id) return 120;
+  if(currentDay && currentDay.exercises[0] && currentDay.exercises[0].id === ex.id) return 90;
   // everything else: standard hypertrophy-accessory rest
   return 75;
 }
@@ -581,6 +600,21 @@ function renderExerciseBlock(ex, latest){
     row.querySelector('.set-remove-slot').addEventListener('click', () => removeSet(ex.id, s.id));
   });
 
+  const noteWrap = document.createElement('div');
+  noteWrap.className = 'user-note-wrap';
+  noteWrap.innerHTML = `
+    <span class="user-note-label">Your Notes</span>
+    <textarea class="user-note" data-note-for="${ex.id}" placeholder="e.g. felt off today, try lighter next time, form cue...">${escapeHtml(ex.userNote || '')}</textarea>
+  `;
+  const noteArea = noteWrap.querySelector('.user-note');
+  noteArea.addEventListener('input', () => autoGrow(noteArea));
+  noteArea.addEventListener('blur', () => {
+    ex.userNote = noteArea.value;
+    saveProgram(LIVE_PROGRAM);
+  });
+  block.appendChild(noteWrap);
+  setTimeout(() => autoGrow(noteArea), 0);
+
   const addSetBtn = document.createElement('button');
   addSetBtn.className = 'add-set-btn edit-only';
   addSetBtn.textContent = '+ Add Set';
@@ -613,7 +647,7 @@ function renderDayBody(){
 }
 
 function snapshotInputs(){
-  const snap = {};
+  const snap = { sets: {}, notes: {} };
   document.querySelectorAll('#log-body .exercise-block').forEach(block => {
     const exId = block.dataset.exId;
     block.querySelectorAll('.set-row').forEach(row => {
@@ -621,9 +655,11 @@ function snapshotInputs(){
       const w = row.querySelector('[data-field="weight"]').value;
       const r = row.querySelector('[data-field="reps"]').value;
       if(w !== '' || r !== ''){
-        snap[exId + '|' + setId] = { w, r };
+        snap.sets[exId + '|' + setId] = { w, r };
       }
     });
+    const noteEl = block.querySelector('.user-note');
+    if(noteEl) snap.notes[exId] = noteEl.value;
   });
   return snap;
 }
@@ -634,12 +670,17 @@ function restoreInputs(snap){
     block.querySelectorAll('.set-row').forEach(row => {
       const setId = row.dataset.setId;
       const key = exId + '|' + setId;
-      if(snap[key]){
-        row.querySelector('[data-field="weight"]').value = snap[key].w;
-        row.querySelector('[data-field="reps"]').value = snap[key].r;
+      if(snap.sets[key]){
+        row.querySelector('[data-field="weight"]').value = snap.sets[key].w;
+        row.querySelector('[data-field="reps"]').value = snap.sets[key].r;
       }
     });
     updateTally(block);
+    const noteEl = block.querySelector('.user-note');
+    if(noteEl && snap.notes[exId] !== undefined){
+      noteEl.value = snap.notes[exId];
+      autoGrow(noteEl);
+    }
   });
 }
 
@@ -775,7 +816,7 @@ function handleAddExercise(){
   for(let i = 0; i < setCount; i++){
     sets.push({ type: 'normal', target, id: exId + '-set' + i });
   }
-  currentDay.exercises.push({ id: exId, name, notes, superset: '', sets });
+  currentDay.exercises.push({ id: exId, name, notes, superset: '', userNote: '', sets });
   saveProgram(LIVE_PROGRAM);
   closeAddExerciseModal();
   rebuildDayBody();
@@ -835,31 +876,52 @@ function onRestComplete(){
   setTimeout(endRest, 1400);
 }
 
+/* Persistent AudioContext, unlocked by a real tap. Creating a fresh
+   AudioContext inside a setTimeout/setInterval callback (as opposed to
+   directly inside a tap/click handler) gets silently blocked by iOS
+   Safari's autoplay policy, so we create it once on first touch and
+   reuse/resume it — that keeps it "unlocked" for later programmatic beeps. */
+let audioCtx = null;
+function unlockAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return; }
+  }
+  if(audioCtx.state === 'suspended'){
+    audioCtx.resume().catch(() => {});
+  }
+}
+document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+document.addEventListener('click', unlockAudio, { once: true });
+
 function playBeep(){
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const ring = (delay) => {
-      setTimeout(() => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+  if(!audioCtx){ unlockAudio(); }
+  if(!audioCtx) return;
+  if(audioCtx.state === 'suspended'){ audioCtx.resume().catch(() => {}); }
+
+  const ring = (delay) => {
+    setTimeout(() => {
+      try{
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
         osc.type = 'sine';
         osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-        osc.connect(gain); gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        osc.connect(gain); gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.32);
-      }, delay);
-    };
-    ring(0); ring(400);
-  }catch(e){}
+        osc.stop(audioCtx.currentTime + 0.37);
+      }catch(e){}
+    }, delay);
+  };
+  ring(0); ring(400); ring(800);
 }
 
 document.getElementById('rest-skip').addEventListener('click', endRest);
 document.getElementById('rest-minus').addEventListener('click', () => {
+  if(!restInterval) return;
   restRemaining = Math.max(0, restRemaining - 15);
-  if(restRemaining === 0){ clearInterval(restInterval); onRestComplete(); }
+  if(restRemaining === 0){ clearInterval(restInterval); restInterval = null; onRestComplete(); }
   else{ updateRestUI(); }
 });
 document.getElementById('rest-plus').addEventListener('click', () => {
