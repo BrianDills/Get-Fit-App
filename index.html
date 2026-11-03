@@ -1172,6 +1172,7 @@ let historyFromHome = false;
 function openHevyHistory(){
   currentDay = { id:'hevy-import', title:'HEVY HISTORY' };
   historyFromHome = true;
+  document.getElementById('home-view').classList.add('hidden');
   openHistory();
 }
 
