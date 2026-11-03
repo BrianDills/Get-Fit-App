@@ -1170,6 +1170,9 @@ function openHistory(){
       const card = document.createElement('div');
       card.className = 'history-session';
       let html = `<div class="history-date">${fmtDateFull(session.date)}</div>`;
+      if(session.source === 'hevy' && session.title){
+        html += `<div class="exercise-note">${escapeHtml(session.title)}</div>`;
+      }
       Object.values(session.exercises || {}).forEach(exEntry => {
         const setsStr = Object.values(exEntry.sets || {})
           .filter(s => s.weight != null || s.reps != null || s.distance != null || s.duration != null)
@@ -1197,7 +1200,13 @@ function openHistory(){
 
 function closeHistory(){
   document.getElementById('history-view').classList.add('hidden');
-  document.getElementById('log-view').classList.remove('hidden');
+  if(currentDay && currentDay.id === 'hevy-imported'){
+    document.getElementById('log-view').classList.add('hidden');
+    document.getElementById('home-view').classList.remove('hidden');
+    renderHome();
+  }else{
+    document.getElementById('log-view').classList.remove('hidden');
+  }
   window.scrollTo(0,0);
 }
 
