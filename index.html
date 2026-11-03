@@ -1387,7 +1387,7 @@ function hevyCsvDate(value){
   if(match){
     const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
     const month = months[match[2].toLowerCase()];
-    if(month !== undefined) return new Date(Date.UTC(+match[3],month,+match[1],+match[4],+match[5])).toISOString();
+    if(month !== undefined) return new Date(+match[3],month,+match[1],+match[4],+match[5]).toISOString();
   }
   throw new Error('Could not read Hevy date: ' + value);
 }
