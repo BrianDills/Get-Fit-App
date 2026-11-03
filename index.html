@@ -1365,8 +1365,8 @@ function parseCsvRows(text){
       else field += ch;
     }else if(ch === '"' && field === '') quoted = true;
     else if(ch === ','){ row.push(field); field = ''; }
-    else if(ch === '\\n' || ch === '\\r'){
-      if(ch === '\\r' && text[i+1] === '\\n') i++;
+    else if(ch === '\n' || ch === '\r'){
+      if(ch === '\r' && text[i+1] === '\n') i++;
       row.push(field); field = '';
       if(row.some(value => value !== '')) rows.push(row);
       row = [];
@@ -1375,7 +1375,7 @@ function parseCsvRows(text){
   row.push(field);
   if(row.some(value => value !== '')) rows.push(row);
   if(rows.length < 2) throw new Error('The CSV does not contain any workout rows.');
-  const headers = rows.shift().map(value => value.trim().replace(/^\\uFEFF/, '').toLowerCase());
+  const headers = rows.shift().map(value => value.trim().replace(/^\uFEFF/, '').toLowerCase());
   return rows.map(values => Object.fromEntries(headers.map((header,index) => [header, (values[index] || '').trim()])));
 }
 
@@ -1383,7 +1383,7 @@ function hevyCsvDate(value){
   if(!value) throw new Error('A workout row is missing its start_time.');
   const native = new Date(value);
   if(!Number.isNaN(native.getTime())) return native.toISOString();
-  const match = value.match(/^(\\d{1,2})\\s+([A-Za-z]{3})\\s+(\\d{4}),?\\s+(\\d{1,2}):(\\d{2})$/);
+  const match = value.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4}),?\s+(\d{1,2}):(\d{2})$/);
   if(match){
     const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
     const month = months[match[2].toLowerCase()];
@@ -1393,7 +1393,7 @@ function hevyCsvDate(value){
 }
 
 function parseHevyCsv(text){
-  const rows = parseCsvRows(text.replace(/^\\uFEFF/, ''));
+  const rows = parseCsvRows(text.replace(/^\uFEFF/, ''));
   const required = ['title','start_time','exercise_title','set_index','set_type'];
   if(!required.every(key => Object.prototype.hasOwnProperty.call(rows[0],key))){
     throw new Error('This CSV is missing required Hevy columns. Please choose the original Export Workouts file.');
