@@ -99,6 +99,8 @@
   }
 
   .reset-row{ text-align:center; margin-top: 28px; display:flex; flex-direction:column; gap:10px; }
+  .backup-row{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-bottom:4px; }
+  .backup-btn{ background:var(--surface); border:1px solid var(--ink); border-radius:6px; color:var(--ink); font-family:'Courier Prime',monospace; font-size:11px; letter-spacing:0.5px; padding:9px 12px; cursor:pointer; }
   .reset-btn{
     background:none; border:none; color:var(--muted-2); font-size:11px;
     font-family:'Courier Prime',monospace; letter-spacing:0.5px; padding:6px; cursor:pointer;
@@ -385,6 +387,11 @@
     <div class="section-label">This week's plan</div>
     <div id="day-list"></div>
     <div class="reset-row">
+      <div class="backup-row">
+        <button class="backup-btn" id="backup-btn">Export backup</button>
+        <button class="backup-btn" id="restore-backup-btn">Restore backup</button>
+        <input id="backup-file-input" type="file" accept=".json,application/json" class="hidden">
+      </div>
       <button class="reset-btn" id="reset-btn">clear all logged data</button>
       <button class="reset-btn" id="restore-btn">restore original program</button>
     </div>
@@ -522,8 +529,6 @@ function loadProgram(){
 
 let LIVE_PROGRAM = loadProgram();
 
-const HISTORY_LIMIT = 20;
-
 function migrateLegacyLatest(dayId){
   if(localStorage.getItem('history:' + dayId)) return;
   const legacyRaw = localStorage.getItem('latest:' + dayId);
@@ -566,7 +571,6 @@ function getHistory(dayId){
 function saveSession(dayId, session){
   const hist = getHistory(dayId);
   hist.push(session);
-  while(hist.length > HISTORY_LIMIT) hist.shift();
   localStorage.setItem('history:' + dayId, JSON.stringify(hist));
 }
 
@@ -1178,6 +1182,132 @@ document.getElementById('back-btn').addEventListener('click', goHome);
 document.getElementById('history-btn').addEventListener('click', openHistory);
 document.getElementById('history-back-btn').addEventListener('click', closeHistory);
 document.getElementById('finish-btn').addEventListener('click', finishWorkout);
+/* ---------- data backup / restore ---------- */
+const BACKUP_FORMAT = 'iron-log-backup';
+const BACKUP_VERSION = 1;
+
+function collectBackupData(){
+  const history = {};
+  const legacyLatest = {};
+  for(let i = 0; i < localStorage.length; i++){
+    const key = localStorage.key(i);
+    if(!key) continue;
+    if(key.startsWith('history:')){
+      const dayId = key.slice(8);
+      history[dayId] = JSON.parse(localStorage.getItem(key));
+    }else if(key.startsWith('latest:')){
+      const dayId = key.slice(7);
+      legacyLatest[dayId] = JSON.parse(localStorage.getItem(key));
+    }
+  }
+  const rawProgram = localStorage.getItem('program-data');
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    program: rawProgram ? JSON.parse(rawProgram) : LIVE_PROGRAM,
+    history,
+    legacyLatest
+  };
+}
+
+function exportBackup(){
+  try{
+    const backup = collectBackupData();
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'iron-log-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Backup exported.');
+  }catch(e){
+    showToast('Backup failed — check browser storage.');
+  }
+}
+
+function validateBackup(data){
+  if(!data || data.format !== BACKUP_FORMAT || data.version !== BACKUP_VERSION){
+    throw new Error('This is not a supported Iron Log backup.');
+  }
+  if(!Array.isArray(data.program) || !data.program.length ||
+     !data.program.every(day => day && typeof day.id === 'string' && Array.isArray(day.exercises))){
+    throw new Error('Backup program data is invalid.');
+  }
+  if(!data.history || typeof data.history !== 'object' || Array.isArray(data.history) ||
+     !data.legacyLatest || typeof data.legacyLatest !== 'object' || Array.isArray(data.legacyLatest)){
+    throw new Error('Backup workout history is invalid.');
+  }
+  for(const sessions of Object.values(data.history)){
+    if(!Array.isArray(sessions)) throw new Error('A workout history entry is invalid.');
+  }
+  return true;
+}
+
+function restoreBackupFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      validateBackup(data);
+      const sessionCount = Object.values(data.history).reduce((sum, sessions) => sum + sessions.length, 0);
+      const dayCount = Object.keys(data.history).length;
+      const dateLabel = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'unknown date';
+      const message = 'Restore this Iron Log backup?\n\nExported: ' + dateLabel +
+        '\nProgram days: ' + data.program.length +
+        '\nWorkout sessions: ' + sessionCount +
+        '\nHistory days: ' + dayCount +
+        '\n\nYour current program and workout history will be replaced.';
+      if(!confirm(message)) return;
+
+      const keysToReplace = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(key === 'program-data' || key.startsWith('history:') || key.startsWith('latest:')) keysToReplace.push(key);
+      }
+      const previous = {};
+      keysToReplace.forEach(key => previous[key] = localStorage.getItem(key));
+      try{
+        localStorage.setItem('program-data', JSON.stringify(data.program));
+        keysToReplace.filter(key => key.startsWith('history:') || key.startsWith('latest:')).forEach(key => localStorage.removeItem(key));
+        Object.entries(data.history).forEach(([dayId, sessions]) => localStorage.setItem('history:' + dayId, JSON.stringify(sessions)));
+        Object.entries(data.legacyLatest).forEach(([dayId, latest]) => localStorage.setItem('latest:' + dayId, JSON.stringify(latest)));
+      }catch(writeError){
+        const currentKeys = [];
+        for(let i = 0; i < localStorage.length; i++){
+          const key = localStorage.key(i);
+          if(key === 'program-data' || key.startsWith('history:') || key.startsWith('latest:')) currentKeys.push(key);
+        }
+        currentKeys.forEach(key => localStorage.removeItem(key));
+        for(const key of Object.keys(previous)){
+          if(previous[key] !== null) localStorage.setItem(key, previous[key]);
+        }
+        throw writeError;
+      }
+      LIVE_PROGRAM = JSON.parse(JSON.stringify(data.program));
+      showToast('Backup restored successfully.');
+      renderHome();
+    }catch(e){
+      showToast(e && e.message ? e.message : 'Could not restore this backup.');
+    }finally{
+      document.getElementById('backup-file-input').value = '';
+    }
+  };
+  reader.onerror = () => {
+    showToast('Could not read that backup file.');
+    document.getElementById('backup-file-input').value = '';
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('backup-btn').addEventListener('click', exportBackup);
+document.getElementById('restore-backup-btn').addEventListener('click', () => document.getElementById('backup-file-input').click());
+document.getElementById('backup-file-input').addEventListener('change', event => restoreBackupFile(event.target.files[0]));
+
 document.getElementById('reset-btn').addEventListener('click', () => {
   if(!confirm('Clear all logged sessions? This cannot be undone.')) return;
   for(const day of LIVE_PROGRAM){
