@@ -101,6 +101,8 @@
   .reset-row{ text-align:center; margin-top: 28px; display:flex; flex-direction:column; gap:10px; }
   .backup-row{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-bottom:4px; }
   .backup-btn{ background:var(--surface); border:1px solid var(--ink); border-radius:6px; color:var(--ink); font-family:'Courier Prime',monospace; font-size:11px; letter-spacing:0.5px; padding:9px 12px; cursor:pointer; }
+  .import-preview-summary{ font-size:12px; line-height:1.6; color:var(--muted); max-height:42vh; overflow:auto; white-space:pre-line; }
+  .import-preview-summary strong{ color:var(--ink); }
   .reset-btn{
     background:none; border:none; color:var(--muted-2); font-size:11px;
     font-family:'Courier Prime',monospace; letter-spacing:0.5px; padding:6px; cursor:pointer;
@@ -307,6 +309,9 @@
   .history-ex-sets{
     color: var(--muted); text-align:right; font-family:'Courier Prime',monospace; font-size:12px;
   }
+  .history-exercise-note,.history-description{
+    color:var(--muted-2); font-size:11px; line-height:1.4; margin:2px 0 6px;
+  }
 
   /* ---------- modal ---------- */
   .modal-overlay{
@@ -390,7 +395,9 @@
       <div class="backup-row">
         <button class="backup-btn" id="backup-btn">Export backup</button>
         <button class="backup-btn" id="restore-backup-btn">Restore backup</button>
+        <button class="backup-btn" id="import-hevy-btn">Import Hevy CSV</button>
         <input id="backup-file-input" type="file" accept=".json,application/json" class="hidden">
+        <input id="hevy-file-input" type="file" accept=".csv,text/csv" class="hidden">
       </div>
       <button class="reset-btn" id="reset-btn">clear all logged data</button>
       <button class="reset-btn" id="restore-btn">restore original program</button>
@@ -473,6 +480,17 @@
     <div class="modal-actions">
       <button id="modal-cancel">Cancel</button>
       <button id="modal-save" class="primary">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="hevy-import-modal">
+  <div class="modal-card">
+    <div class="modal-title">Review Hevy Import</div>
+    <div class="import-preview-summary" id="hevy-import-summary"></div>
+    <div class="modal-actions">
+      <button id="hevy-import-cancel">Cancel</button>
+      <button id="hevy-import-confirm" class="primary">Import workouts</button>
     </div>
   </div>
 </div>
@@ -608,6 +626,22 @@ async function renderHome(){
       <div class="chevron">&rsaquo;</div>
     `;
     card.addEventListener('click', () => openDay(day.id));
+    list.appendChild(card);
+  }
+  const imported = getHistory('hevy-import');
+  if(imported.length){
+    const card = document.createElement('div');
+    card.className = 'day-card';
+    card.innerHTML = `
+      <div class="num">H</div>
+      <div class="info">
+        <div class="title">HEVY HISTORY</div>
+        <div class="subtitle">Imported workout archive</div>
+        <div class="status done">${imported.length} imported sessions</div>
+      </div>
+      <div class="chevron">&rsaquo;</div>
+    `;
+    card.addEventListener('click', openHevyHistory);
     list.appendChild(card);
   }
 }
@@ -1133,7 +1167,17 @@ function goHome(){
   window.scrollTo(0,0);
 }
 
+let historyFromHome = false;
+
+function openHevyHistory(){
+  currentDay = { id:'hevy-import', title:'HEVY HISTORY' };
+  historyFromHome = true;
+  document.getElementById('home-view').classList.add('hidden');
+  openHistory();
+}
+
 function openHistory(){
+  if(currentDay.id !== 'hevy-import') historyFromHome = false;
   const hist = getHistory(currentDay.id).slice().reverse();
   document.getElementById('history-title').textContent = currentDay.title;
   const body = document.getElementById('history-body');
@@ -1148,18 +1192,24 @@ function openHistory(){
     hist.forEach(session => {
       const card = document.createElement('div');
       card.className = 'history-session';
-      let html = `<div class="history-date">${fmtDateFull(session.date)}</div>`;
+      let html = `<div class="history-date">${fmtDateFull(session.date)}${session.title ? ' · ' + escapeHtml(session.title) : ''}</div>`;
+      if(session.description) html += `<div class="history-description">${escapeHtml(session.description)}</div>`;
       Object.values(session.exercises || {}).forEach(exEntry => {
         const setsStr = Object.values(exEntry.sets || {})
-          .filter(s => s.weight != null || s.reps != null)
+          .filter(s => s.weight != null || s.reps != null || s.distance != null || s.duration != null || s.rpe != null)
           .map(s => {
-            const w = s.weight != null ? s.weight : '-';
+            const label = s.label && s.label !== 'Set' ? s.label + ' ' : '';
+            const w = s.weight != null ? s.weight + ' lb' : '';
             const r = s.reps != null ? '×' + s.reps : '';
-            return `${w}${r}`;
+            const d = s.distance != null ? s.distance + ' mi' : '';
+            const t = s.duration != null ? Math.round(s.duration) + ' sec' : '';
+            const rpe = s.rpe != null ? ' RPE ' + s.rpe : '';
+            return label + [w + r, d, t].filter(Boolean).join(' ') + rpe;
           })
           .join(', ');
         if(setsStr){
           html += `<div class="history-exercise"><span class="history-ex-name">${escapeHtml(exEntry.name)}</span><span class="history-ex-sets">${escapeHtml(setsStr)}</span></div>`;
+          if(exEntry.notes) html += `<div class="history-exercise-note">${escapeHtml(exEntry.notes)}</div>`;
         }
       });
       card.innerHTML = html;
@@ -1174,7 +1224,12 @@ function openHistory(){
 
 function closeHistory(){
   document.getElementById('history-view').classList.add('hidden');
-  document.getElementById('log-view').classList.remove('hidden');
+  if(historyFromHome){
+    historyFromHome = false;
+    document.getElementById('home-view').classList.remove('hidden');
+  }else{
+    document.getElementById('log-view').classList.remove('hidden');
+  }
   window.scrollTo(0,0);
 }
 
@@ -1182,6 +1237,176 @@ document.getElementById('back-btn').addEventListener('click', goHome);
 document.getElementById('history-btn').addEventListener('click', openHistory);
 document.getElementById('history-back-btn').addEventListener('click', closeHistory);
 document.getElementById('finish-btn').addEventListener('click', finishWorkout);
+
+/* ---------- Hevy CSV import ---------- */
+let pendingHevyImport = null;
+
+function parseCsvRows(text){
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(quoted){
+      if(ch === '"' && text[i + 1] === '"'){ field += '"'; i++; }
+      else if(ch === '"'){ quoted = false; }
+      else{ field += ch; }
+    }else if(ch === '"'){ quoted = true; }
+    else if(ch === ','){ row.push(field); field = ''; }
+    else if(ch === '\n'){
+      row.push(field.replace(/\r$/, '')); rows.push(row); row = []; field = '';
+    }else{ field += ch; }
+  }
+  if(field.length || row.length){ row.push(field.replace(/\r$/, '')); rows.push(row); }
+  return rows;
+}
+
+function parseHevyDate(value){
+  const match = String(value || '').trim().match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4}),\s*(\d{1,2}):(\d{2})$/);
+  if(!match) return null;
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  const month = months[match[2].toLowerCase()];
+  if(month === undefined) return null;
+  const date = new Date(Number(match[3]), month, Number(match[1]), Number(match[4]), Number(match[5]));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function csvNumber(value){
+  if(value == null || String(value).trim() === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function hevyFingerprint(session){
+  const source = JSON.stringify({title:session.title,date:session.date,exercises:session.exercises});
+  let hash = 2166136261;
+  for(let i = 0; i < source.length; i++){
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return 'hevy-' + (hash >>> 0).toString(16);
+}
+
+function parseHevyCsv(text){
+  const rows = parseCsvRows(String(text || '').replace(/^\uFEFF/, ''));
+  if(rows.length < 2) throw new Error('The CSV does not contain workout rows.');
+  const headers = rows[0].map(h => h.trim());
+  const required = ['title','start_time','end_time','exercise_title','set_index','set_type','weight_lbs','reps'];
+  const missing = required.filter(h => !headers.includes(h));
+  if(missing.length) throw new Error('This does not look like a Hevy workout export. Missing columns: ' + missing.join(', '));
+  const column = name => headers.indexOf(name);
+  const grouped = new Map();
+  let skippedRows = 0;
+  for(let i = 1; i < rows.length; i++){
+    const cells = rows[i];
+    if(cells.length === 1 && !cells[0].trim()) continue;
+    const get = name => column(name) >= 0 ? (cells[column(name)] || '').trim() : '';
+    const title = get('title');
+    const date = parseHevyDate(get('start_time'));
+    const exerciseName = get('exercise_title');
+    if(!title || !date || !exerciseName){ skippedRows++; continue; }
+    const groupKey = JSON.stringify([title,get('start_time'),get('end_time')]);
+    if(!grouped.has(groupKey)){
+      grouped.set(groupKey,{
+        date,title,description:get('description'),
+        exercises:{}, source:'Hevy'
+      });
+    }
+    const session = grouped.get(groupKey);
+    const exKey = 'ex-' + slug(exerciseName) + '-' + Object.keys(session.exercises).length;
+    let exercise = Object.values(session.exercises).find(ex => ex.name === exerciseName);
+    if(!exercise){
+      exercise = {name:exerciseName,notes:get('exercise_notes'),sets:{}};
+      session.exercises[exKey] = exercise;
+    }
+    const weight = csvNumber(get('weight_lbs'));
+    const reps = csvNumber(get('reps'));
+    const distance = csvNumber(get('distance_miles'));
+    const duration = csvNumber(get('duration_seconds'));
+    const rpe = csvNumber(get('rpe'));
+    const setType = get('set_type').toLowerCase();
+    const setIndex = csvNumber(get('set_index'));
+    const setId = 'set-' + (setIndex == null ? Object.keys(exercise.sets).length : setIndex);
+    if(weight == null && reps == null && distance == null && duration == null && rpe == null){
+      skippedRows++;
+      continue;
+    }
+    exercise.sets[setId] = {
+      label:setType === 'warmup' ? 'Warm-up' : setType === 'failure' ? 'Failure' : 'Set',
+      weight,reps,distance,duration,rpe,
+      notes:get('exercise_notes'),
+      superset:get('superset_id')
+    };
+  }
+  const sessions = Array.from(grouped.values()).filter(session => Object.keys(session.exercises).length);
+  sessions.forEach(session => { session.hevyImportId = hevyFingerprint(session); });
+  if(!sessions.length) throw new Error('No usable workouts were found in this CSV.');
+  return {sessions,skippedRows,totalRows:rows.length - 1};
+}
+
+function previewHevyImport(parsed){
+  const existing = getHistory('hevy-import');
+  const existingIds = new Set(existing.map(s => s.hevyImportId).filter(Boolean));
+  const duplicates = parsed.sessions.filter(s => existingIds.has(s.hevyImportId)).length;
+  const newSessions = parsed.sessions.length - duplicates;
+  const allDates = parsed.sessions.map(s => new Date(s.date).getTime()).filter(Number.isFinite);
+  const first = allDates.length ? fmtDateFull(new Date(Math.min(...allDates)).toISOString()) : '—';
+  const last = allDates.length ? fmtDateFull(new Date(Math.max(...allDates)).toISOString()) : '—';
+  const sets = parsed.sessions.reduce((sum,s) => sum + Object.values(s.exercises).reduce((n,e) => n + Object.keys(e.sets).length,0),0);
+  document.getElementById('hevy-import-summary').innerHTML =
+    '<strong>' + parsed.sessions.length + '</strong> workouts found (' + newSessions + ' new, ' + duplicates + ' already imported).\n' +
+    '<strong>' + sets + '</strong> sets across ' + parsed.sessions.reduce((n,s) => n + Object.keys(s.exercises).length,0) + ' exercise entries.\n' +
+    'Date range: ' + first + ' – ' + last + '\n' +
+    'Rows skipped: ' + parsed.skippedRows + ' of ' + parsed.totalRows + ' (blank or unusable set rows).\n\n' +
+    'Your existing program and other workout history will stay untouched. Imported workouts will appear under HEVY HISTORY on the home screen.';
+  const confirm = document.getElementById('hevy-import-confirm');
+  confirm.disabled = newSessions === 0;
+  confirm.style.opacity = newSessions === 0 ? '0.45' : '1';
+  pendingHevyImport = parsed;
+  document.getElementById('hevy-import-modal').classList.remove('hidden');
+}
+
+function commitHevyImport(){
+  if(!pendingHevyImport) return;
+  try{
+    const existing = getHistory('hevy-import');
+    const existingIds = new Set(existing.map(s => s.hevyImportId).filter(Boolean));
+    const additions = pendingHevyImport.sessions.filter(s => !existingIds.has(s.hevyImportId));
+    if(!additions.length){
+      showToast('These workouts are already imported.');
+      return;
+    }
+    // One localStorage write keeps the prior archive intact if quota/storage fails.
+    localStorage.setItem('history:hevy-import', JSON.stringify(existing.concat(additions)));
+    pendingHevyImport = null;
+    document.getElementById('hevy-import-modal').classList.add('hidden');
+    document.getElementById('hevy-file-input').value = '';
+    showToast(additions.length + ' Hevy workouts imported.');
+    renderHome();
+  }catch(e){
+    showToast('Import failed. Your existing workout data was not changed.');
+  }
+}
+
+function handleHevyFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{ previewHevyImport(parseHevyCsv(reader.result)); }
+    catch(e){ showToast(e && e.message ? e.message : 'Could not read this Hevy CSV.'); }
+    finally{ document.getElementById('hevy-file-input').value = ''; }
+  };
+  reader.onerror = () => showToast('Could not read that CSV file.');
+  reader.readAsText(file);
+}
+
+document.getElementById('import-hevy-btn').addEventListener('click', () => document.getElementById('hevy-file-input').click());
+document.getElementById('hevy-file-input').addEventListener('change', event => handleHevyFile(event.target.files[0]));
+document.getElementById('hevy-import-cancel').addEventListener('click', () => {
+  pendingHevyImport = null;
+  document.getElementById('hevy-import-modal').classList.add('hidden');
+});
+document.getElementById('hevy-import-confirm').addEventListener('click', commitHevyImport);
+
 /* ---------- data backup / restore ---------- */
 const BACKUP_FORMAT = 'iron-log-backup';
 const BACKUP_VERSION = 1;
