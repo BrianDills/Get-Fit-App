@@ -1280,9 +1280,14 @@ function restoreBackupFile(file){
         Object.entries(data.history).forEach(([dayId, sessions]) => localStorage.setItem('history:' + dayId, JSON.stringify(sessions)));
         Object.entries(data.legacyLatest).forEach(([dayId, latest]) => localStorage.setItem('latest:' + dayId, JSON.stringify(latest)));
       }catch(writeError){
+        const currentKeys = [];
+        for(let i = 0; i < localStorage.length; i++){
+          const key = localStorage.key(i);
+          if(key === 'program-data' || key.startsWith('history:') || key.startsWith('latest:')) currentKeys.push(key);
+        }
+        currentKeys.forEach(key => localStorage.removeItem(key));
         for(const key of Object.keys(previous)){
-          if(previous[key] === null) localStorage.removeItem(key);
-          else localStorage.setItem(key, previous[key]);
+          if(previous[key] !== null) localStorage.setItem(key, previous[key]);
         }
         throw writeError;
       }
