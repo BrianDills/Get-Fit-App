@@ -309,6 +309,9 @@
   .history-ex-sets{
     color: var(--muted); text-align:right; font-family:'Courier Prime',monospace; font-size:12px;
   }
+  .history-exercise-note,.history-description{
+    color:var(--muted-2); font-size:11px; line-height:1.4; margin:2px 0 6px;
+  }
 
   /* ---------- modal ---------- */
   .modal-overlay{
@@ -1189,19 +1192,23 @@ function openHistory(){
       const card = document.createElement('div');
       card.className = 'history-session';
       let html = `<div class="history-date">${fmtDateFull(session.date)}${session.title ? ' · ' + escapeHtml(session.title) : ''}</div>`;
+      if(session.description) html += `<div class="history-description">${escapeHtml(session.description)}</div>`;
       Object.values(session.exercises || {}).forEach(exEntry => {
         const setsStr = Object.values(exEntry.sets || {})
-          .filter(s => s.weight != null || s.reps != null)
+          .filter(s => s.weight != null || s.reps != null || s.distance != null || s.duration != null || s.rpe != null)
           .map(s => {
+            const label = s.label && s.label !== 'Set' ? s.label + ' ' : '';
             const w = s.weight != null ? s.weight + ' lb' : '';
             const r = s.reps != null ? '×' + s.reps : '';
             const d = s.distance != null ? s.distance + ' mi' : '';
             const t = s.duration != null ? Math.round(s.duration) + ' sec' : '';
-            return [w + r, d, t].filter(Boolean).join(' ');
+            const rpe = s.rpe != null ? ' RPE ' + s.rpe : '';
+            return label + [w + r, d, t].filter(Boolean).join(' ') + rpe;
           })
           .join(', ');
         if(setsStr){
           html += `<div class="history-exercise"><span class="history-ex-name">${escapeHtml(exEntry.name)}</span><span class="history-ex-sets">${escapeHtml(setsStr)}</span></div>`;
+          if(exEntry.notes) html += `<div class="history-exercise-note">${escapeHtml(exEntry.notes)}</div>`;
         }
       });
       card.innerHTML = html;
@@ -1307,7 +1314,7 @@ function parseHevyCsv(text){
     const exKey = 'ex-' + slug(exerciseName) + '-' + Object.keys(session.exercises).length;
     let exercise = Object.values(session.exercises).find(ex => ex.name === exerciseName);
     if(!exercise){
-      exercise = {name:exerciseName,sets:{}};
+      exercise = {name:exerciseName,notes:get('exercise_notes'),sets:{}};
       session.exercises[exKey] = exercise;
     }
     const weight = csvNumber(get('weight_lbs'));
