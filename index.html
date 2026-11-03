@@ -529,8 +529,6 @@ function loadProgram(){
 
 let LIVE_PROGRAM = loadProgram();
 
-const HISTORY_LIMIT = 20;
-
 function migrateLegacyLatest(dayId){
   if(localStorage.getItem('history:' + dayId)) return;
   const legacyRaw = localStorage.getItem('latest:' + dayId);
@@ -573,7 +571,6 @@ function getHistory(dayId){
 function saveSession(dayId, session){
   const hist = getHistory(dayId);
   hist.push(session);
-  while(hist.length > HISTORY_LIMIT) hist.shift();
   localStorage.setItem('history:' + dayId, JSON.stringify(hist));
 }
 
