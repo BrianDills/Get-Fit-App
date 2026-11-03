@@ -390,6 +390,8 @@
       <div class="backup-row">
         <button class="backup-btn" id="backup-btn">Export backup</button>
         <button class="backup-btn" id="restore-backup-btn">Restore backup</button>
+        <button class="backup-btn" id="hevy-import-btn">Import Hevy</button>
+        <input id="hevy-import-file" type="file" accept=".json,application/json" class="hidden">
         <input id="backup-file-input" type="file" accept=".json,application/json" class="hidden">
       </div>
       <button class="reset-btn" id="reset-btn">clear all logged data</button>
@@ -608,6 +610,25 @@ async function renderHome(){
       <div class="chevron">&rsaquo;</div>
     `;
     card.addEventListener('click', () => openDay(day.id));
+    list.appendChild(card);
+  }
+  const hevyHistory = getHistory('hevy-imported');
+  if(hevyHistory.length){
+    const card = document.createElement('div');
+    card.className = 'day-card';
+    card.innerHTML = `
+      <div class="num">H</div>
+      <div class="info">
+        <div class="title">HEVY ARCHIVE</div>
+        <div class="subtitle">Imported workout history</div>
+        <div class="status done">${hevyHistory.length} sessions · last done ${fmtDate(hevyHistory[hevyHistory.length - 1].date)}</div>
+      </div>
+      <div class="chevron">&rsaquo;</div>
+    `;
+    card.addEventListener('click', () => {
+      currentDay = { id: 'hevy-imported', title: 'HEVY ARCHIVE' };
+      openHistory();
+    });
     list.appendChild(card);
   }
 }
@@ -1151,11 +1172,13 @@ function openHistory(){
       let html = `<div class="history-date">${fmtDateFull(session.date)}</div>`;
       Object.values(session.exercises || {}).forEach(exEntry => {
         const setsStr = Object.values(exEntry.sets || {})
-          .filter(s => s.weight != null || s.reps != null)
+          .filter(s => s.weight != null || s.reps != null || s.distance != null || s.duration != null)
           .map(s => {
-            const w = s.weight != null ? s.weight : '-';
+            const w = s.weight != null ? s.weight : '';
             const r = s.reps != null ? '×' + s.reps : '';
-            return `${w}${r}`;
+            const d = s.distance != null ? s.distance + ' mi' : '';
+            const t = s.duration != null ? Math.round(s.duration / 60) + ' min' : '';
+            return [w + r, d, t].filter(Boolean).join(' · ') || '-';
           })
           .join(', ');
         if(setsStr){
@@ -1307,6 +1330,111 @@ function restoreBackupFile(file){
 document.getElementById('backup-btn').addEventListener('click', exportBackup);
 document.getElementById('restore-backup-btn').addEventListener('click', () => document.getElementById('backup-file-input').click());
 document.getElementById('backup-file-input').addEventListener('change', event => restoreBackupFile(event.target.files[0]));
+
+/* ---------- Hevy history import ---------- */
+const HEVY_ARCHIVE_ID = 'hevy-imported';
+const HEVY_KG_TO_LB = 2.2046226218;
+const HEVY_METERS_TO_MILES = 0.0006213711922;
+
+function parseHevyPayload(data){
+  const workouts = Array.isArray(data) ? data : data && Array.isArray(data.workouts) ? data.workouts : null;
+  if(!workouts || !workouts.length) throw new Error('No Hevy workouts found in this JSON file.');
+  if(!workouts.every(w => w && typeof w.id === 'string' && typeof w.start_time === 'string' && Array.isArray(w.exercises))){
+    throw new Error('This JSON does not match the Hevy workout export format.');
+  }
+  return workouts;
+}
+
+function importHevyWorkouts(workouts){
+  const existing = getHistory(HEVY_ARCHIVE_ID);
+  const known = new Set(existing.map(s => s.hevyWorkoutId).filter(Boolean));
+  const incoming = workouts.filter(w => !known.has(w.id));
+  if(!incoming.length) return { imported:0, duplicates:workouts.length, sets:0 };
+
+  const converted = incoming.map(w => {
+    const exercises = {};
+    w.exercises.forEach((ex, exIndex) => {
+      const sets = {};
+      (ex.sets || []).forEach((set, setIndex) => {
+        sets['hevy-set-' + exIndex + '-' + setIndex] = {
+          label: set.type || 'Set',
+          weight: set.weight_kg == null ? null : Math.round(set.weight_kg * HEVY_KG_TO_LB * 10) / 10,
+          reps: set.reps == null ? null : set.reps,
+          distance: set.distance_meters == null ? null : Math.round(set.distance_meters * HEVY_METERS_TO_MILES * 100) / 100,
+          duration: set.duration_seconds == null ? null : set.duration_seconds,
+          rpe: set.rpe == null ? null : set.rpe,
+          type: set.type || 'normal'
+        };
+      });
+      exercises['hevy-ex-' + exIndex] = {
+        name: ex.title || 'Unknown exercise',
+        notes: ex.notes || '',
+        sets
+      };
+    });
+    return {
+      date: w.start_time,
+      hevyWorkoutId: w.id,
+      source: 'hevy',
+      title: w.title || 'Hevy workout',
+      description: w.description || '',
+      durationSeconds: w.end_time ? Math.max(0, (new Date(w.end_time) - new Date(w.start_time)) / 1000) : null,
+      exercises
+    };
+  }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  // Write once after building the full replacement array; preserve all other Iron Log keys.
+  const merged = existing.concat(converted).sort((a,b) => new Date(a.date) - new Date(b.date));
+  localStorage.setItem('history:' + HEVY_ARCHIVE_ID, JSON.stringify(merged));
+  return {
+    imported: converted.length,
+    duplicates: workouts.length - incoming.length,
+    sets: converted.reduce((n, session) => n + Object.values(session.exercises).reduce((m, ex) => m + Object.keys(ex.sets).length, 0), 0)
+  };
+}
+
+function handleHevyImport(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const workouts = parseHevyPayload(JSON.parse(reader.result));
+      const previewSets = workouts.reduce((n,w) => n + w.exercises.reduce((m,e) => m + (e.sets || []).length, 0), 0);
+      const existing = getHistory(HEVY_ARCHIVE_ID);
+      const known = new Set(existing.map(s => s.hevyWorkoutId).filter(Boolean));
+      const fresh = workouts.filter(w => !known.has(w.id));
+      if(!fresh.length){
+        showToast('All ' + workouts.length + ' workouts were already imported.');
+        return;
+      }
+      const start = workouts.map(w => w.start_time).sort()[0].slice(0,10);
+      const end = workouts.map(w => w.start_time).sort().at(-1).slice(0,10);
+      const ok = confirm('Import Hevy workout history?\n\nWorkouts in file: ' + workouts.length +
+        '\nNew workouts: ' + fresh.length +
+        '\nAlready imported: ' + (workouts.length - fresh.length) +
+        '\nSets in file: ' + previewSets +
+        '\nDate range: ' + start + ' to ' + end +
+        '\n\nYour existing Iron Log program and workout history will be preserved.');
+      if(!ok) return;
+      const result = importHevyWorkouts(workouts);
+      showToast('Imported ' + result.imported + ' workouts · ' + result.sets + ' sets.');
+      renderHome();
+    }catch(e){
+      showToast(e && e.message ? e.message : 'Hevy import failed. No existing data was changed.');
+    }finally{
+      document.getElementById('hevy-import-file').value = '';
+    }
+  };
+  reader.onerror = () => {
+    showToast('Could not read that Hevy file.');
+    document.getElementById('hevy-import-file').value = '';
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('hevy-import-btn').addEventListener('click', () => document.getElementById('hevy-import-file').click());
+document.getElementById('hevy-import-file').addEventListener('change', event => handleHevyImport(event.target.files[0]));
+
 
 document.getElementById('reset-btn').addEventListener('click', () => {
   if(!confirm('Clear all logged sessions? This cannot be undone.')) return;
